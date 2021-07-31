@@ -158,9 +158,6 @@ namespace leveldb
     virtual bool KeyMayMatch(const Slice &key, const Slice &filter) const;
   };
 
-  // Modules in this directory should keep internal keys wrapped inside
-  // the following class instead of plain strings so that we do not
-  // incorrectly use string comparisons instead of an InternalKeyComparator.
   // MemTable类实例中存放的就是internal key，其格式为：
   // |userkey|sequence number|type|
   class InternalKey
@@ -233,6 +230,12 @@ namespace leveldb
   //	 tag	  uint64
   //									 <-- end_
   // 利用这样的内存布局就是可以很容易给上层调用者返回memtable_key、internal_key或者user_key。
+  // A意义：user_key.size() + 8 变长编码后的值
+  // B意义：userkey
+  // C意义：64位整型顺序号<< 8 + 值类型 64位定长编码后的值
+  // memtable_key = A + B + C
+  // internal_key = B + C
+  // user_key = B
   class LookupKey
   {
   public:

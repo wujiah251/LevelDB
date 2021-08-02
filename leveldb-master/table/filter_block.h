@@ -48,6 +48,7 @@ namespace leveldb
     // 的key集合对应的过滤器创建完毕之后就会将tmp_keys清空，为创建下一个key集合对应的
     // 过滤器做好准备。
     std::vector<Slice> tmp_keys_; // policy_->CreateFilter() argument
+
     // filter_offsets_动态数组存放的是每一个过滤器在result_动态字符串中的索引起始值。
     std::vector<uint32_t> filter_offsets_;
     FilterBlockBuilder(const FilterBlockBuilder &);

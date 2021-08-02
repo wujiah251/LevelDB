@@ -63,6 +63,7 @@ namespace leveldb
     }
   };
 
+  // 构造函数
   TableBuilder::TableBuilder(const Options &options, WritableFile *file)
       : rep_(new Rep(options, file))
   {

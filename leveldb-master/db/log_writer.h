@@ -35,9 +35,6 @@ namespace leveldb
       // 当前正在使用的block中未使用部分相对于block起始的偏移。
       int block_offset_; // Current offset in block
 
-      // crc32c values for all supported record types.  These are
-      // pre-computed to reduce the overhead of computing the crc of the
-      // record type stored in the header.
       uint32_t type_crc_[kMaxRecordType + 1];
 
       Status EmitPhysicalRecord(RecordType type, const char *ptr, size_t length);

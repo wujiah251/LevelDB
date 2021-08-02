@@ -60,11 +60,8 @@ namespace leveldb
     return comparator.Compare(a, b);
   }
 
-  // Encode a suitable internal key target for "target" and return it.
-  // Uses *scratch as scratch space, and the returned pointer will point
-  // into this scratch space.
   // 用于编码一个Slice对象，编码完成后形成的内存布局格式为：
-  //     |var_length|content|
+  // |var_length|content|
   static const char *EncodeKey(std::string *scratch, const Slice &target)
   {
     scratch->clear();
@@ -101,7 +98,10 @@ namespace leveldb
     //    vlength  varint32
     //    value    char[vlength]
     // 所以如果要获取key信息的话，需要先解析出klength，然后获取key对应的Slice对象。
-    virtual Slice key() const { return GetLengthPrefixedSlice(iter_.key()); }
+    virtual Slice key() const
+    {
+      return GetLengthPrefixedSlice(iter_.key());
+    }
 
     // 根据上面的编码格式，获取value信息，首先需要找到vlength+value部分的起始地址，
     // 然后再进一步解析出vlength大小以及value的起始地址，再利用这两部分信息构造出
@@ -132,8 +132,8 @@ namespace leveldb
   }
 
   // Add()函数实现了MemTable类实例添加元素的操作，其输入参数包括序列号、类型
-  // 以及键值信息，其中类型包括kTypeDeletion和kTypeValue，为什么需要一个类型信息
-  // 呢？因为leveldb中的删除操作是延迟操作，删除操作也当做是一种插入操作，类型
+  // 以及键值信息，其中类型包括kTypeDeletion和kTypeValue，为什么需要一个类型信息呢？
+  // 因为leveldb中的删除操作是延迟操作，删除操作也当做是一种插入操作，类型
   // 信息就是用于区分是删除操作还是普通的插入操作。
   // skiplist中的一个项的编码格式为:
   //    klength  varint32
@@ -146,11 +146,6 @@ namespace leveldb
                      const Slice &key,
                      const Slice &value)
   {
-    // Format of an entry is concatenation of:
-    //  key_size     : varint32 of internal_key.size()
-    //  key bytes    : char[internal_key.size()]
-    //  value_size   : varint32 of value.size()
-    //  value bytes  : char[value.size()]
     size_t key_size = key.size();
     size_t val_size = value.size();
 
@@ -198,13 +193,10 @@ namespace leveldb
   // 我们往skiplist插入的时候插入的就是key+value信息，只是我们在get的时候只用了key信息。
   bool MemTable::Get(const LookupKey &key, std::string *value, Status *s)
   {
-
     // 从LookupKey实例中获取memtable key。
     Slice memkey = key.memtable_key();
-
     // 创建一个skiplist的迭代器实例
     Table::Iterator iter(&table_);
-
     // 尝试用memtable_key查找元素，如果找到的话，那么返回的迭代器是可用的。
     // 如果迭代器可用，那么久可以从迭代器中获取对应的key+value信息，因为
     // 因为我们往skiplist插入的时候插入的就是key+value信息，只是我们在get的
@@ -218,9 +210,6 @@ namespace leveldb
       //    tag      uint64
       //    vlength  varint32
       //    value    char[vlength]
-      // Check that it belongs to same user key.  We do not check the
-      // sequence number since the Seek() call above should have skipped
-      // all entries with overly large sequence numbers.
       // iter.key()就是Add的时候添加进去的entry结构。
       const char *entry = iter.key();
       uint32_t key_length;

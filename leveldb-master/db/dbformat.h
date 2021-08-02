@@ -166,7 +166,7 @@ namespace leveldb
     std::string rep_;
 
   public:
-    InternalKey() {} // Leave rep_ as empty to indicate it is invalid
+    InternalKey() {}
 
     // InternalKey类的构造函数，利用user_key，sequence number 和type编码成internal key，
     // 并存放到rep_中。
@@ -223,7 +223,6 @@ namespace leveldb
     return (c <= static_cast<unsigned char>(kTypeValue));
   }
 
-  // A helper class useful for DBImpl::Get()
   // LookupKey类用于封装一个从MemTable类实例查询元素信息的时候使用的参数，其格式如下：
   //   klength	varint32			 <-- start_
   //	 userkey  char[klength] 		 <-- kstart_
@@ -239,8 +238,6 @@ namespace leveldb
   class LookupKey
   {
   public:
-    // Initialize *this for looking up user_key at a snapshot with
-    // the specified sequence number.
     LookupKey(const Slice &user_key, SequenceNumber sequence);
 
     ~LookupKey();

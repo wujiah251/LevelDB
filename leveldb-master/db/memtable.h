@@ -10,21 +10,19 @@
 namespace leveldb
 {
 
-  class InternalKeyComparator;
-  class Mutex;
+  class InternalKeyComparator; //内部key比较器
+  class Mutex;                 // 互斥锁
   class MemTableIterator;
 
   class MemTable
   {
   public:
-    // MemTables are reference counted.  The initial reference count
-    // is zero and the caller must call Ref() at least once.
     explicit MemTable(const InternalKeyComparator &comparator);
 
-    // Increase reference count.
+    // 引用计数+1
     void Ref() { ++refs_; }
 
-    // Drop reference count.  Delete if no more references exist.
+    // 引用计数减1
     void Unref()
     {
       --refs_;
@@ -35,7 +33,7 @@ namespace leveldb
       }
     }
 
-    // 返回memtable实例的内存使用量
+    // 返回memtable实例的内存使用量，其实就算调用内存分配器的函数
     size_t ApproximateMemoryUsage();
 
     // 创建一个迭代器，其实就是一个MemTableIterator类实例。
@@ -49,7 +47,7 @@ namespace leveldb
     bool Get(const LookupKey &key, std::string *value, Status *s);
 
   private:
-    ~MemTable(); // Private since only Unref() should be used to delete it
+    ~MemTable();
 
     // MemTable类内部使用的键比较器类型。
     struct KeyComparator

@@ -18,8 +18,6 @@ namespace leveldb
   class RandomAccessFile;
   struct ReadOptions;
 
-  // BlockHandle is a pointer to the extent of a file that stores a data
-  // block or a meta block.
   // BlockHandle类描述了一个block在文件中的偏移和大小。这个大小不包含
   // 紧随在block后面的type和crc的5个字节大小。
   class BlockHandle

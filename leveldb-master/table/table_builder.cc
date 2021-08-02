@@ -21,17 +21,26 @@ namespace leveldb
   struct TableBuilder::Rep
   {
     Options options;
+
     Options index_block_options;
-    WritableFile *file;       // sstable文件对应的WritableFile*对象
-    uint64_t offset;          // file当前的大小，其实也是当前正在构建的block在文件中的偏移
-    Status status;            // status用来就每一个步骤的结果
-    BlockBuilder data_block;  // 用来构建table中的data block之用
-    BlockBuilder index_block; // 用来构建table中的index block之用
-    std::string last_key;     // last_key保存着上一次调用Add()加入到table中的key值
-    int64_t num_entries;      // 当前已经加入到table中的key-value个数。
+    // sstable文件对应的WritableFile*对象
+    WritableFile *file;
+    // file当前的大小，其实也是当前正在构建的block在文件中的偏移
+    uint64_t offset;
+    // status用来就每一个步骤的结果
+    Status status;
+    // 用来构建table中的data block之用
+    BlockBuilder data_block;
+    // 用来构建table中的index block之用
+    BlockBuilder index_block;
+    // last_key保存着上一次调用Add()加入到table中的key值
+    std::string last_key;
+    // 当前已经加入到table中的key-value个数。
+    int64_t num_entries;
     // closed是Finish()或者Abandon()被调用过的标志
-    bool closed;                      // Either Finish() or Abandon() has been called.
-    FilterBlockBuilder *filter_block; // 用来构建table中的filter block之用。
+    bool closed; // Either Finish() or Abandon() has been called.
+    // 用于构建filter block
+    FilterBlockBuilder *filter_block;
 
     // pending_index_entry标志位用来标记需要在index block中记录一下刚刚构建完毕
     // 的data block位置和大小信息，因为data block已经构建完了，也知道这个block
@@ -82,9 +91,6 @@ namespace leveldb
 
   Status TableBuilder::ChangeOptions(const Options &options)
   {
-    // Note: if more fields are added to Options, update
-    // this function to catch changes that should not be allowed to
-    // change in the middle of building a Table.
     if (options.comparator != rep_->options.comparator)
     {
       return Status::InvalidArgument("changing comparator while building table");
@@ -113,24 +119,22 @@ namespace leveldb
     // 如果r->pending_index_entry为true的话，说明本次要加入到sstable中的key-value
     // 记录会被存放到一个新的data block中，也就是说之前构建的那个data block由于
     // 大小达到了阈值不能再往里面添加key-value信息了，并且这个data block中也已经
-    // 写入了trailer，构建完毕了，所以在开启一个新的data block之前，需要先将这个
+    // 写入了trailer，构建完毕了。
+    // 所以在开启一个新的data block之前，需要先将这个
     // 已经构建完毕的data block在文件中的偏移以及大小信息写入到对应的index block中。
     // 后续从sstable中读取data block的信息时才能有足够的信息完整内容读取。
     // 这个大小信息是不包含trailer部分的，只包含data block中的数据内容部分(key-value
     // 记录组+restart数组+restart数组长度)。
     if (r->pending_index_entry)
     {
-
       // 在WriteBlock()方法中构建完一个data block并写入到文件之后就会将r->data_block
       // 清空，为下一个data block的构建做好准备。
       assert(r->data_block.empty());
-
       // FindShortestSeparator会将r->last_key设置为一个在[r->last_key, key)范围内的
       // 最短字符串，这里要将r->last_key限制比下一个block中第一个key小就是为了让
       // 上层调用者传入一个待查询的key值时，能定位到其所属的那个data block。
       r->options.comparator->FindShortestSeparator(&r->last_key, key);
       std::string handle_encoding;
-
       // 将存放着已经构建完毕的data block的位置和大小信息的pending_handle中的
       // 内容编码到字符串中。然后将刚刚计算得到的last_key和存放着编码后的data block的
       // 位置和大小信息的Slice对象作为一个key-value记录加入到index block中。
@@ -150,7 +154,7 @@ namespace leveldb
       // 迭代器的Seek()接口就能找到key对应的value信息。
     }
 
-    // 如果r->filter_block_不为NULL的话，那么就将key值添加到filter block中
+    // 向filter_block中添加key
     if (r->filter_block != NULL)
     {
       r->filter_block->AddKey(key);

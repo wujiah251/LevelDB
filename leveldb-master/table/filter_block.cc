@@ -104,7 +104,7 @@ namespace leveldb
     result_.push_back(kFilterBaseLg); // Save encoding parameter in result
     return Slice(result_);
   }
-
+  // 生成布隆过滤器
   void FilterBlockBuilder::GenerateFilter()
   {
 
@@ -133,7 +133,9 @@ namespace leveldb
       tmp_keys_[i] = Slice(base, length);
     }
 
-    // Generate filter for current set of keys and append to result_.
+    // 下面两行代码用于生成布隆过滤器的结果：|bitmap|K|
+    // bitmap是位图，K是hash次数，两个合并的字符串append到result_里
+
     // 在filter_offsets_动态数组中存放本次将要生成的过滤器在result_中的索引起始值。
     // 因为每一个key集合对应的过滤器都是以追加的方式存放到result_中的，所以本次
     // 即将生成的过滤器将从result_.size()位置开始存放。

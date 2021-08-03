@@ -584,7 +584,7 @@ namespace leveldb
         return reinterpret_cast<LRUHandle *>(handle)->value;
       }
 
-      // NewId()用于返回一个新的可用id。获取id时候需要枷锁
+      // NewId()用于返回一个新的可用id。获取id时候需要加锁
       virtual uint64_t NewId()
       {
         MutexLock l(&id_mutex_);

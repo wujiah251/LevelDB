@@ -1759,16 +1759,13 @@ namespace leveldb
                   DB **dbptr)
   {
     *dbptr = NULL;
-
     DBImpl *impl = new DBImpl(options, dbname);
     impl->mutex_.Lock();
     VersionEdit edit;
-    // Recover handles create_if_missing, error_if_exists
     bool save_manifest = false;
     Status s = impl->Recover(&edit, &save_manifest);
     if (s.ok() && impl->mem_ == NULL)
     {
-      // Create new log and a corresponding memtable.
       uint64_t new_log_number = impl->versions_->NewFileNumber();
       WritableFile *lfile;
       s = options.env->NewWritableFile(LogFileName(dbname, new_log_number),

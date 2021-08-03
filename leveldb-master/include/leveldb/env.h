@@ -36,41 +36,26 @@ namespace leveldb
   public:
     Env() {}
     virtual ~Env();
-
     static Env *Default();
-
     virtual Status NewSequentialFile(const std::string &fname,
                                      SequentialFile **result) = 0;
-
     virtual Status NewRandomAccessFile(const std::string &fname,
                                        RandomAccessFile **result) = 0;
-
     virtual Status NewWritableFile(const std::string &fname,
                                    WritableFile **result) = 0;
-
     virtual Status NewAppendableFile(const std::string &fname,
                                      WritableFile **result);
-
     virtual bool FileExists(const std::string &fname) = 0;
-
     virtual Status GetChildren(const std::string &dir,
                                std::vector<std::string> *result) = 0;
-
     virtual Status DeleteFile(const std::string &fname) = 0;
-
     virtual Status CreateDir(const std::string &dirname) = 0;
-
     virtual Status DeleteDir(const std::string &dirname) = 0;
-
     virtual Status GetFileSize(const std::string &fname, uint64_t *file_size) = 0;
-
     virtual Status RenameFile(const std::string &src,
                               const std::string &target) = 0;
-
     virtual Status LockFile(const std::string &fname, FileLock **lock) = 0;
-
     virtual Status UnlockFile(FileLock *lock) = 0;
-
     virtual void Schedule(
         void (*function)(void *arg),
         void *arg) = 0;
@@ -91,7 +76,6 @@ namespace leveldb
     void operator=(const Env &);
   };
 
-  // A file abstraction for reading sequentially through a file
   class LEVELDB_EXPORT SequentialFile
   {
   public:
@@ -106,34 +90,25 @@ namespace leveldb
     SequentialFile(const SequentialFile &);
     void operator=(const SequentialFile &);
   };
-
+  // SST文件抽象类
   class LEVELDB_EXPORT RandomAccessFile
   {
   public:
+    // 构造函数
     RandomAccessFile() {}
+    // 析构函数
     virtual ~RandomAccessFile();
 
-    // Read up to "n" bytes from the file starting at "offset".
-    // "scratch[0..n-1]" may be written by this routine.  Sets "*result"
-    // to the data that was read (including if fewer than "n" bytes were
-    // successfully read).  May set "*result" to point at data in
-    // "scratch[0..n-1]", so "scratch[0..n-1]" must be live when
-    // "*result" is used.  If an error was encountered, returns a non-OK
-    // status.
-    //
-    // Safe for concurrent use by multiple threads.
+    // 读取
     virtual Status Read(uint64_t offset, size_t n, Slice *result,
                         char *scratch) const = 0;
 
   private:
-    // No copying allowed
+    // 复制构造函数
     RandomAccessFile(const RandomAccessFile &);
     void operator=(const RandomAccessFile &);
   };
 
-  // A file abstraction for sequential writing.  The implementation
-  // must provide buffering since callers may append small fragments
-  // at a time to the file.
   // WritableFile是一个抽象类，指明了写文件操作应该实现的接口。
   class LEVELDB_EXPORT WritableFile
   {
@@ -200,20 +175,14 @@ namespace leveldb
   LEVELDB_EXPORT Status ReadFileToString(Env *env, const std::string &fname,
                                          std::string *data);
 
-  // An implementation of Env that forwards all calls to another Env.
-  // May be useful to clients who wish to override just part of the
-  // functionality of another Env.
   class LEVELDB_EXPORT EnvWrapper : public Env
   {
   public:
-    // Initialize an EnvWrapper that delegates all calls to *t
     explicit EnvWrapper(Env *t) : target_(t) {}
     virtual ~EnvWrapper();
 
-    // Return the target to which this Env forwards all calls
     Env *target() const { return target_; }
 
-    // The following text is boilerplate that forwards all methods to target()
     Status NewSequentialFile(const std::string &f, SequentialFile **r)
     {
       return target_->NewSequentialFile(f, r);

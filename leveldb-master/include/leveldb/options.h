@@ -75,23 +75,9 @@ namespace leveldb
   // Options that control read operations
   struct LEVELDB_EXPORT ReadOptions
   {
-    // If true, all data read from underlying storage will be
-    // verified against corresponding checksums.
-    // Default: false
-    bool verify_checksums;
-
-    // Should the data read for this iteration be cached in memory?
-    // Callers may wish to set this field to false for bulk scans.
-    // Default: true
+    bool verify_checksums; //是否检查校验和
     bool fill_cache;
-
-    // If "snapshot" is non-NULL, read as of the supplied snapshot
-    // (which must belong to the DB that is being read and which must
-    // not have been released).  If "snapshot" is NULL, use an implicit
-    // snapshot of the state at the beginning of this read operation.
-    // Default: NULL
     const Snapshot *snapshot;
-
     ReadOptions()
         : verify_checksums(false),
           fill_cache(true),
@@ -100,7 +86,6 @@ namespace leveldb
     }
   };
 
-  // Options that control write operations
   struct LEVELDB_EXPORT WriteOptions
   {
     bool sync;

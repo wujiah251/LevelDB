@@ -8,60 +8,76 @@
 #include "db/dbformat.h"
 #include "leveldb/db.h"
 
-namespace leveldb {
+namespace leveldb
+{
 
-class SnapshotList;
+  class SnapshotList;
 
-// Snapshots are kept in a doubly-linked list in the DB.
-// Each SnapshotImpl corresponds to a particular sequence number.
-class SnapshotImpl : public Snapshot {
- public:
-  SequenceNumber number_;  // const after creation
+  // 快照类
+  class SnapshotImpl : public Snapshot
+  {
+  public:
+    // 序列号
+    SequenceNumber number_;
 
- private:
-  friend class SnapshotList;
+  private:
+    friend class SnapshotList;
 
-  // SnapshotImpl is kept in a doubly-linked circular list
-  SnapshotImpl* prev_;
-  SnapshotImpl* next_;
+    SnapshotImpl *prev_;
+    SnapshotImpl *next_;
 
-  SnapshotList* list_;                 // just for sanity checks
-};
+    SnapshotList *list_;
+  };
+  // 快照链表
+  class SnapshotList
+  {
+  public:
+    SnapshotList()
+    {
+      list_.prev_ = &list_;
+      list_.next_ = &list_;
+    }
 
-class SnapshotList {
- public:
-  SnapshotList() {
-    list_.prev_ = &list_;
-    list_.next_ = &list_;
-  }
+    bool empty() const { return list_.next_ == &list_; }
+    // 返回最旧的快照
+    SnapshotImpl *oldest() const
+    {
+      assert(!empty());
+      return list_.next_;
+    }
+    // 返回最新的快照
+    SnapshotImpl *newest() const
+    {
+      assert(!empty());
+      return list_.prev_;
+    }
+    // 根据序列号生成一个新的快照
+    // 插入到末尾
+    const SnapshotImpl *New(SequenceNumber seq)
+    {
+      SnapshotImpl *s = new SnapshotImpl;
+      s->number_ = seq;
+      s->list_ = this;
+      s->next_ = &list_;
+      s->prev_ = list_.prev_;
+      s->prev_->next_ = s;
+      s->next_->prev_ = s;
+      return s;
+    }
+    // 删除一个快照
+    void Delete(const SnapshotImpl *s)
+    {
+      assert(s->list_ == this);
+      s->prev_->next_ = s->next_;
+      s->next_->prev_ = s->prev_;
+      delete s;
+    }
 
-  bool empty() const { return list_.next_ == &list_; }
-  SnapshotImpl* oldest() const { assert(!empty()); return list_.next_; }
-  SnapshotImpl* newest() const { assert(!empty()); return list_.prev_; }
+  private:
+    // 头节点
+    SnapshotImpl list_;
+  };
 
-  const SnapshotImpl* New(SequenceNumber seq) {
-    SnapshotImpl* s = new SnapshotImpl;
-    s->number_ = seq;
-    s->list_ = this;
-    s->next_ = &list_;
-    s->prev_ = list_.prev_;
-    s->prev_->next_ = s;
-    s->next_->prev_ = s;
-    return s;
-  }
+} // namespace leveldb
 
-  void Delete(const SnapshotImpl* s) {
-    assert(s->list_ == this);
-    s->prev_->next_ = s->next_;
-    s->next_->prev_ = s->prev_;
-    delete s;
-  }
-
- private:
-  // Dummy head of doubly-linked list of snapshots
-  SnapshotImpl list_;
-};
-
-}  // namespace leveldb
-
-#endif  // STORAGE_LEVELDB_DB_SNAPSHOT_H_
+#endif // STORAGE_LEVELDB_DB_SNAPSHOT_H_

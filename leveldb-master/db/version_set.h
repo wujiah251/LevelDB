@@ -40,19 +40,10 @@ namespace leveldb
   class VersionSet;
   class WritableFile;
 
-  // Return the smallest index i such that files[i]->largest >= key.
-  // Return files.size() if there is no such file.
-  // REQUIRES: "files" contains a sorted list of non-overlapping files.
   extern int FindFile(const InternalKeyComparator &icmp,
                       const std::vector<FileMetaData *> &files,
                       const Slice &key);
 
-  // Returns true iff some file in "files" overlaps the user key range
-  // [*smallest,*largest].
-  // smallest==NULL represents a key smaller than all keys in the DB.
-  // largest==NULL represents a key largest than all keys in the DB.
-  // REQUIRES: If disjoint_sorted_files, files[] contains disjoint ranges
-  //           in sorted order.
   extern bool SomeFileOverlapsRange(
       const InternalKeyComparator &icmp,
       bool disjoint_sorted_files,
@@ -63,14 +54,8 @@ namespace leveldb
   class Version
   {
   public:
-    // Append to *iters a sequence of iterators that will
-    // yield the contents of this Version when merged together.
-    // REQUIRES: This version has been saved (see VersionSet::SaveTo)
     void AddIterators(const ReadOptions &, std::vector<Iterator *> *iters);
 
-    // Lookup the value for key.  If found, store it in *val and
-    // return OK.  Else return a non-OK status.  Fills *stats.
-    // REQUIRES: lock is not held
     struct GetStats
     {
       FileMetaData *seek_file;
@@ -79,44 +64,29 @@ namespace leveldb
     Status Get(const ReadOptions &, const LookupKey &key, std::string *val,
                GetStats *stats);
 
-    // Adds "stats" into the current state.  Returns true if a new
-    // compaction may need to be triggered, false otherwise.
-    // REQUIRES: lock is held
     bool UpdateStats(const GetStats &stats);
 
-    // Record a sample of bytes read at the specified internal key.
-    // Samples are taken approximately once every config::kReadBytesPeriod
-    // bytes.  Returns true if a new compaction may need to be triggered.
-    // REQUIRES: lock is held
     bool RecordReadSample(Slice key);
 
-    // Reference count management (so Versions do not disappear out from
-    // under live iterators)
     void Ref();
     void Unref();
-
+    // GetOverlappingInputs()用于将level层的所有和key值范围[begin,end]有
+    // 重叠的sstable文件对应的文件元信息对象收集起来存放到inputs数组中。
     void GetOverlappingInputs(
         int level,
         const InternalKey *begin, // NULL means before all keys
         const InternalKey *end,   // NULL means after all keys
         std::vector<FileMetaData *> *inputs);
 
-    // Returns true iff some file in the specified level overlaps
-    // some part of [*smallest_user_key,*largest_user_key].
-    // smallest_user_key==NULL represents a key smaller than all keys in the DB.
-    // largest_user_key==NULL represents a key largest than all keys in the DB.
     bool OverlapInLevel(int level,
                         const Slice *smallest_user_key,
                         const Slice *largest_user_key);
 
-    // Return the level at which we should place a new memtable compaction
-    // result that covers the range [smallest_user_key,largest_user_key].
     int PickLevelForMemTableOutput(const Slice &smallest_user_key,
                                    const Slice &largest_user_key);
 
     int NumFiles(int level) const { return files_[level].size(); }
 
-    // Return a human readable string that describes this version's contents.
     std::string DebugString() const;
 
   private:
@@ -126,37 +96,28 @@ namespace leveldb
     class LevelFileNumIterator;
     Iterator *NewConcatenatingIterator(const ReadOptions &, int level) const;
 
-    // Call func(arg, level, f) for every file that overlaps user_key in
-    // order from newest to oldest.  If an invocation of func returns
-    // false, makes no more calls.
-    //
-    // REQUIRES: user portion of internal_key == user_key.
     void ForEachOverlapping(Slice user_key, Slice internal_key,
                             void *arg,
                             bool (*func)(void *, int, FileMetaData *));
 
     // vset_是对应的VersionSet类实例
-    VersionSet *vset_; // VersionSet to which this Version belongs
+    VersionSet *vset_;
 
     // next_和prev_用于将多个Version类实例以链表方式管理起来
-    Version *next_; // Next version in linked list
-    Version *prev_; // Previous version in linked list
+    Version *next_;
+    Version *prev_;
 
     // refs_是版本的引用计数。
-    int refs_; // Number of live refs to this version
+    int refs_;
 
     // List of files per level
     // files_存放了该版本中每一个层级的所有sstable文件对应的文件元信息对象
     std::vector<FileMetaData *> files_[config::kNumLevels];
 
-    // Next file to compact based on seek stats.
     // 存放将要进行compact的sstable文件对应的文件元信息对象及所在的level。
     FileMetaData *file_to_compact_;
     int file_to_compact_level_;
 
-    // Level that should be compacted next and its compaction score.
-    // Score < 1 means compaction is not strictly needed.  These fields
-    // are initialized by Finalize().
     // compact的分值以及对应的需要进行compact的level。
     double compaction_score_;
     int compaction_level_;
@@ -172,7 +133,6 @@ namespace leveldb
 
     ~Version();
 
-    // No copying allowed
     Version(const Version &);
     void operator=(const Version &);
   };
@@ -322,47 +282,29 @@ namespace leveldb
     void operator=(const VersionSet &);
   };
 
-  // A Compaction encapsulates information about a compaction.
   class Compaction
   {
   public:
     ~Compaction();
 
-    // Return the level that is being compacted.  Inputs from "level"
-    // and "level+1" will be merged to produce a set of "level+1" files.
     int level() const { return level_; }
 
-    // Return the object that holds the edits to the descriptor done
-    // by this compaction.
     VersionEdit *edit() { return &edit_; }
 
-    // "which" must be either 0 or 1
     int num_input_files(int which) const { return inputs_[which].size(); }
 
-    // Return the ith input file at "level()+which" ("which" must be 0 or 1).
     FileMetaData *input(int which, int i) const { return inputs_[which][i]; }
 
-    // Maximum size of files to build during this compaction.
     uint64_t MaxOutputFileSize() const { return max_output_file_size_; }
 
-    // Is this a trivial compaction that can be implemented by just
-    // moving a single input file to the next level (no merging or splitting)
     bool IsTrivialMove() const;
 
-    // Add all inputs to this compaction as delete operations to *edit.
     void AddInputDeletions(VersionEdit *edit);
 
-    // Returns true if the information we have available guarantees that
-    // the compaction is producing data in "level+1" for which no data exists
-    // in levels greater than "level+1".
     bool IsBaseLevelForKey(const Slice &user_key);
 
-    // Returns true iff we should stop building the current output
-    // before processing "internal_key".
     bool ShouldStopBefore(const Slice &internal_key);
 
-    // Release the input version for the compaction, once the compaction
-    // is successful.
     void ReleaseInputs();
 
   private:
@@ -373,26 +315,18 @@ namespace leveldb
 
     int level_;
     uint64_t max_output_file_size_;
+    // 输入版本
     Version *input_version_;
     VersionEdit edit_;
 
-    // Each compaction reads inputs from "level_" and "level_+1"
     std::vector<FileMetaData *> inputs_[2]; // The two sets of inputs
 
-    // State used to check for number of of overlapping grandparent files
-    // (parent == level_ + 1, grandparent == level_ + 2)
     std::vector<FileMetaData *> grandparents_;
     size_t grandparent_index_; // Index in grandparent_starts_
     bool seen_key_;            // Some output key has been seen
     int64_t overlapped_bytes_; // Bytes of overlap between current output
                                // and grandparent files
 
-    // State for implementing IsBaseLevelForKey
-
-    // level_ptrs_ holds indices into input_version_->levels_: our state
-    // is that we are positioned at one of the file ranges for each
-    // higher level than the ones involved in this compaction (i.e. for
-    // all L >= level_ + 2).
     size_t level_ptrs_[config::kNumLevels];
   };
 

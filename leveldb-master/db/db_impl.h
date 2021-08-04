@@ -134,7 +134,7 @@ namespace leveldb
     log::Writer *log_;
     uint32_t seed_; // For sampling.
 
-    // Queue of writers.
+    // 写入队列
     std::deque<Writer *> writers_;
     WriteBatch *tmp_batch_;
 

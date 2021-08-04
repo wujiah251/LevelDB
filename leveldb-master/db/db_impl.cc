@@ -1406,6 +1406,7 @@ namespace leveldb
     w.done = false;
 
     MutexLock l(&mutex_);
+    // 插入工作队列
     writers_.push_back(&w);
     while (!w.done && &w != writers_.front())
     {
@@ -1416,20 +1417,15 @@ namespace leveldb
       return w.status;
     }
 
-    // May temporarily unlock and wait.
     Status status = MakeRoomForWrite(my_batch == NULL);
     uint64_t last_sequence = versions_->LastSequence();
     Writer *last_writer = &w;
     if (status.ok() && my_batch != NULL)
-    { // NULL batch is for compactions
+    {
       WriteBatch *updates = BuildBatchGroup(&last_writer);
       WriteBatchInternal::SetSequence(updates, last_sequence + 1);
       last_sequence += WriteBatchInternal::Count(updates);
 
-      // Add to log and apply to memtable.  We can release the lock
-      // during this phase since &w is currently responsible for logging
-      // and protects against concurrent loggers and concurrent writes
-      // into mem_.
       {
         mutex_.Unlock();
         status = log_->AddRecord(WriteBatchInternal::Contents(updates));
@@ -1449,9 +1445,6 @@ namespace leveldb
         mutex_.Lock();
         if (sync_error)
         {
-          // The state of the log file is indeterminate: the log record we
-          // just added may or may not show up when the DB is re-opened.
-          // So we force the DB into a mode where all future writes fail.
           RecordBackgroundError(status);
         }
       }
@@ -1475,7 +1468,6 @@ namespace leveldb
         break;
     }
 
-    // Notify new head of write queue
     if (!writers_.empty())
     {
       writers_.front()->cv.Signal();
@@ -1546,13 +1538,14 @@ namespace leveldb
   {
     mutex_.AssertHeld();
     assert(!writers_.empty());
+    // 是否允许延迟写入
     bool allow_delay = !force;
     Status s;
     while (true)
     {
+      // ?
       if (!bg_error_.ok())
       {
-        // Yield previous error
         s = bg_error_;
         break;
       }

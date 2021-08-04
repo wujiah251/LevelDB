@@ -131,11 +131,6 @@ namespace leveldb
     //
     // |  files0 |    |  files1    |  | files2   | files3 |
     // ----------------------------------------------------
-    // 假设上面的图中区间就是对应文件元信息存放的key值范围，从图中可以看到文件
-    // 和文件之间有可能存在部分key空间是不在两个文件中，如果某个key值不小于files2的
-    // 最大key值，而又大于files1的最大key值，那么FindFile()函数返回的文件元信息下标
-    // 就是图中files2对应的下标，但是不能说明参数key就一定会落在files2中，有可能会
-    // 在files1和files2之间那部分的空白key空间中。
 
     // 这里为什么采用二分查找算法呢？因为在一个层级(非0层)中，所有的sstable文件
     // 中的key都是不重合的，并且是递增的，所以在这种有序状态下可以采用二分法
@@ -149,14 +144,10 @@ namespace leveldb
       // 那么从f后一个文件继续查找。
       if (icmp.InternalKeyComparator::Compare(f->largest.Encode(), key) < 0)
       {
-        // Key at "mid.largest" is < "target".  Therefore all
-        // files at or before "mid" are uninteresting.
         left = mid + 1;
       }
       else
       {
-        // Key at "mid.largest" is >= "target".  Therefore all files
-        // after "mid" are uninteresting.
         right = mid;
       }
     }
@@ -259,11 +250,6 @@ namespace leveldb
     return !BeforeFile(ucmp, largest_user_key, files[index]);
   }
 
-  // An internal iterator.  For a given version/level pair, yields
-  // information about the files in the level.  For a given entry, key()
-  // is the largest key that occurs in the file, and value() is an
-  // 16-byte value containing the file number and file size, both
-  // encoded using EncodeFixed64.
   // Version::LevelFileNumIterator类是一个迭代器的实现类，用于迭代一个
   // 存放这文件元信息对象的动态数组，在实际使用的时候通常用于迭代某个
   // level中的所有sstable对应的文件元信息对象。
@@ -389,6 +375,7 @@ namespace leveldb
   Iterator *Version::NewConcatenatingIterator(const ReadOptions &options,
                                               int level) const
   {
+    // GetFileIterator是内层迭代器
     return NewTwoLevelIterator(
         new LevelFileNumIterator(vset_->icmp_, &files_[level]),
         &GetFileIterator, vset_->table_cache_, options);
@@ -403,7 +390,6 @@ namespace leveldb
   void Version::AddIterators(const ReadOptions &options,
                              std::vector<Iterator *> *iters)
   {
-    // Merge all level zero files together since they may overlap
     for (size_t i = 0; i < files_[0].size(); i++)
     {
       iters->push_back(
@@ -411,9 +397,6 @@ namespace leveldb
               options, files_[0][i]->number, files_[0][i]->file_size));
     }
 
-    // For levels > 0, we can use a concatenating iterator that sequentially
-    // walks through the non-overlapping files in the level, opening them
-    // lazily.
     for (int level = 1; level < config::kNumLevels; level++)
     {
       if (!files_[level].empty())
@@ -487,7 +470,6 @@ namespace leveldb
     // TODO(sanjay): Change Version::Get() to use this function.
     const Comparator *ucmp = vset_->icmp_.user_comparator();
 
-    // Search level-0 in order from newest to oldest.
     // 首先是从0层(level 0)开始，由于level 0中的sstable文件之间可能存在key重叠，
     // 所以在处理level 0的时候需要遍历该层中的所有文件，将包含了user_key的所有
     // sstable文件对应的文件元信息对象收集起来。然后对于目标集合，依次调用func
@@ -515,7 +497,6 @@ namespace leveldb
       }
     }
 
-    // Search other levels.
     // 如果在level 0中没有包含了user_key的sstable，或者对于找到的满足条件的
     // sstable文件，func返回值并没有说要提前返回，那么就会继续搜寻更高层的
     // sstable文件，由于更高层的sstable文件同层级之间不存在key重叠，所以
@@ -567,21 +548,15 @@ namespace leveldb
     FileMetaData *last_file_read = NULL;
     int last_file_read_level = -1;
 
-    // We can search level-by-level since entries never hop across
-    // levels.  Therefore we are guaranteed that if we find data
-    // in an smaller level, later levels are irrelevant.
     std::vector<FileMetaData *> tmp;
     FileMetaData *tmp2;
     // 依次从每个层级中查找key值对应的value。
     for (int level = 0; level < config::kNumLevels; level++)
     {
       size_t num_files = files_[level].size();
-
       // 如果这个层级中没有sstable文件，那么接着处理下一个层级。
       if (num_files == 0)
         continue;
-
-      // Get the list of files to search in this level
       // 获取当前处理层级中所有sstable文件对应的文件元信息对象数组的首地址。
       FileMetaData *const *files = &files_[level][0];
 
@@ -591,8 +566,6 @@ namespace leveldb
       // 更新，排在前面。并将排序完之后的结果设置到files中等待后续处理。
       if (level == 0)
       {
-        // Level-0 files may overlap each other.  Find all files that
-        // overlap user_key and process them in order from newest to oldest.
         tmp.reserve(num_files);
         for (uint32_t i = 0; i < num_files; i++)
         {
@@ -612,7 +585,6 @@ namespace leveldb
       }
       else
       {
-        // Binary search to find earliest index whose largest key >= ikey.
         // 这个分支用于处理大于level 0的所有其他level。利用FindFile()做
         // 二分查找，如果没有找到包含了待查找key值的sstable文件，那么就将
         // files设置为NULL，对应的num_files为0，这样后面看到num_files为0，
@@ -659,7 +631,6 @@ namespace leveldb
         // 及其所在的level。
         if (last_file_read != NULL && stats->seek_file == NULL)
         {
-          // We have had more than one seek for this read.  Charge the 1st file.
           stats->seek_file = last_file_read;
           stats->seek_file_level = last_file_read_level;
         }
@@ -745,7 +716,7 @@ namespace leveldb
     struct State
     {
 
-      // states用于存放第一个匹配的文件元信息对象
+      // stats用于存放第一个匹配的文件元信息对象
       GetStats stats; // Holds first matching file
       int matches;    // matches是一个计数器，对匹配的文件元信息对象进行计数。
 
@@ -768,7 +739,6 @@ namespace leveldb
           state->stats.seek_file = f;
           state->stats.seek_file_level = level;
         }
-        // We can stop iterating once we have a second match.
         return state->matches < 2;
       }
     };
@@ -781,10 +751,6 @@ namespace leveldb
     // 文件元信息对象执行相同的操作，如果不需要，则直接返回。
     ForEachOverlapping(ikey.user_key, internal_key, &state, &State::Match);
 
-    // Must have at least two matches since we want to merge across
-    // files. But what if we have a single file that contains many
-    // overwrites and deletions?  Should we have another mechanism for
-    // finding such files?
     // 如果state.matches >= 2，说明对于user_key来说，至少有两个sstable文件包含了这个key
     // 那么就调用UpdateStats()方法用于根据访问统计判断是否需要更新下一次compact的文件和level
     if (state.matches >= 2)
@@ -845,8 +811,6 @@ namespace leveldb
     // 满足上面的条件，都会将第0层作为目标层数。
     if (!OverlapInLevel(0, &smallest_user_key, &largest_user_key))
     {
-      // Push to next level if there is no overlap in next level,
-      // and the #bytes overlapping in the level after that are limited.
       InternalKey start(smallest_user_key, kMaxSequenceNumber, kValueTypeForSeek);
       InternalKey limit(largest_user_key, 0, static_cast<ValueType>(0));
       std::vector<FileMetaData *> overlaps;
@@ -872,7 +836,6 @@ namespace leveldb
     return level;
   }
 
-  // Store in "*inputs" all files in "level" that overlap [begin,end]
   // GetOverlappingInputs()用于将level层的所有和key值范围[begin,end]有
   // 重叠的sstable文件对应的文件元信息对象收集起来存放到inputs数组中。
   void Version::GetOverlappingInputs(
@@ -953,10 +916,6 @@ namespace leveldb
     std::string r;
     for (int level = 0; level < config::kNumLevels; level++)
     {
-      // E.g.,
-      //   --- level 1 ---
-      //   17:123['a' .. 'd']
-      //   20:43['e' .. 'g']
       r.append("--- level ");
       AppendNumberTo(&r, level);
       r.append(" ---\n");
@@ -977,9 +936,6 @@ namespace leveldb
     return r;
   }
 
-  // A helper class so we can efficiently apply a whole sequence
-  // of edits to a particular state without creating intermediate
-  // Versions that contain full copies of the intermediate state.
   class VersionSet::Builder
   {
   private:
@@ -1851,8 +1807,6 @@ namespace leveldb
     Compaction *c;
     int level;
 
-    // We prefer compactions triggered by too much data in a level over
-    // the compactions triggered by seeks.
     const bool size_compaction = (current_->compaction_score_ >= 1);
     const bool seek_compaction = (current_->file_to_compact_ != NULL);
     if (size_compaction)
@@ -1862,7 +1816,6 @@ namespace leveldb
       assert(level + 1 < config::kNumLevels);
       c = new Compaction(options_, level);
 
-      // Pick the first file that comes after compact_pointer_[level]
       for (size_t i = 0; i < current_->files_[level].size(); i++)
       {
         FileMetaData *f = current_->files_[level][i];
@@ -1893,14 +1846,10 @@ namespace leveldb
     c->input_version_ = current_;
     c->input_version_->Ref();
 
-    // Files in level 0 may overlap each other, so pick up all overlapping ones
     if (level == 0)
     {
       InternalKey smallest, largest;
       GetRange(c->inputs_[0], &smallest, &largest);
-      // Note that the next call will discard the file we placed in
-      // c->inputs_[0] earlier and replace it with an overlapping set
-      // which will include the picked file.
       current_->GetOverlappingInputs(0, &smallest, &largest, &c->inputs_[0]);
       assert(!c->inputs_[0].empty());
     }
@@ -1988,10 +1937,6 @@ namespace leveldb
       return NULL;
     }
 
-    // Avoid compacting too much in one shot in case the range is large.
-    // But we cannot do this for level-0 since level-0 files can overlap
-    // and we must not pick one file and drop another older file if the
-    // two files overlap.
     if (level > 0)
     {
       const uint64_t limit = MaxFileSizeForLevel(options_, level);
@@ -2047,9 +1992,6 @@ namespace leveldb
   bool Compaction::IsTrivialMove() const
   {
     const VersionSet *vset = input_version_->vset_;
-    // Avoid a move if there is lots of overlapping grandparent data.
-    // Otherwise, the move could create a parent file that will require
-    // a very expensive merge later on.
     return (num_input_files(0) == 1 && num_input_files(1) == 0 &&
             TotalFileSize(grandparents_) <=
                 MaxGrandParentOverlapBytes(vset->options_));
@@ -2074,7 +2016,6 @@ namespace leveldb
 
   bool Compaction::IsBaseLevelForKey(const Slice &user_key)
   {
-    // Maybe use binary search to find right entry instead of linear search?
     const Comparator *user_cmp = input_version_->vset_->icmp_.user_comparator();
     for (int lvl = level_ + 2; lvl < config::kNumLevels; lvl++)
     {
@@ -2084,10 +2025,8 @@ namespace leveldb
         FileMetaData *f = files[level_ptrs_[lvl]];
         if (user_cmp->Compare(user_key, f->largest.user_key()) <= 0)
         {
-          // We've advanced far enough
           if (user_cmp->Compare(user_key, f->smallest.user_key()) >= 0)
           {
-            // Key falls in this file's range, so definitely not base level
             return false;
           }
           break;
@@ -2127,6 +2066,7 @@ namespace leveldb
     }
   }
 
+  // 释放输入
   void Compaction::ReleaseInputs()
   {
     if (input_version_ != NULL)

@@ -167,11 +167,9 @@ namespace leveldb
 #endif
       ;
 
-  // A utility routine: write "data" to the named file.
   LEVELDB_EXPORT Status WriteStringToFile(Env *env, const Slice &data,
                                           const std::string &fname);
 
-  // A utility routine: read contents of named file into *data
   LEVELDB_EXPORT Status ReadFileToString(Env *env, const std::string &fname,
                                          std::string *data);
 

@@ -76,9 +76,6 @@ namespace leveldb
     void EncodeTo(std::string *dst) const;
     Status DecodeFrom(Slice *input);
 
-    // Encoded length of a Footer.  Note that the serialization of a
-    // Footer will always occupy exactly this many bytes.  It consists
-    // of two block handles and a magic number.
     // EncodeTo()方法在编码Footer类实例的时候，需要编码两个BlockHandle类实例，
     // 以及一个64位的魔术字，这个魔术字的编码方式没有采用varint64的格式，而
     // 是用普通的编码方式进行编码，需要8个字节。所以编码Footer类实例所需要的

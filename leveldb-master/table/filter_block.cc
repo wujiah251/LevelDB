@@ -191,6 +191,7 @@ namespace leveldb
       // index*4是为了找到存放了index下标对应的过滤器在data_中的索引起始值的内存起始处。
       // 一个索引起始值占4个字节。这个可以从FilterBlockBuilder类的filter_offsets_成员
       // 类型看出。
+      // 获取filter的长度信息
       uint32_t start = DecodeFixed32(offset_ + index * 4);
       uint32_t limit = DecodeFixed32(offset_ + index * 4 + 4);
       // 应用过滤器判断key是否在其中。
@@ -201,7 +202,6 @@ namespace leveldb
       }
       else if (start == limit)
       {
-        // Empty filters do not match any keys
         return false;
       }
     }

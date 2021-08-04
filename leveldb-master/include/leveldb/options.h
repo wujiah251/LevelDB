@@ -30,9 +30,9 @@ namespace leveldb
     kSnappyCompression = 0x1
   };
 
-  // Options to control the behavior of a database (passed to DB::Open)
   struct LEVELDB_EXPORT Options
   {
+    // 比较器
     const Comparator *comparator;
     bool create_if_missing;
     bool error_if_exists;

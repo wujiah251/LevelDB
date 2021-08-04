@@ -42,7 +42,7 @@ namespace leveldb
   };
 
   // Open()函数用于从sstable 文件中读取大小为size的内容，并用一个Table实例来管理
-  // 这些信息，说白了就是将sstable文件中的内容从磁盘读入到内存中。
+  // 说白了就是将sstable文件中的内容从磁盘读入到内存中。
   Status Table::Open(const Options &options,
                      RandomAccessFile *file,
                      uint64_t size,
@@ -63,6 +63,7 @@ namespace leveldb
     // 而服务的。
     char footer_space[Footer::kEncodedLength];
     Slice footer_input;
+    // 先尝试读取出footer
     Status s = file->Read(size - Footer::kEncodedLength, Footer::kEncodedLength,
                           &footer_input, footer_space);
     if (!s.ok())
@@ -73,9 +74,6 @@ namespace leveldb
     s = footer.DecodeFrom(&footer_input);
     if (!s.ok())
       return s;
-
-    // Read the index block
-
     // 程序执行到这里说明已经成功从文件中读取到了footer对象，并从中获取到了index block
     // 的位置和大小信息了。那么就可以根据位置和大小信息从sstable文件中将index block的
     // 内容读取出来，存放到index_block_contents中

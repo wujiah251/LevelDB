@@ -96,8 +96,6 @@ namespace leveldb
     result->cachable = false;
     result->heap_allocated = false;
 
-    // Read the block contents as well as the type/crc footer.
-    // See table_builder.cc for the code that built this structure.
     // 取出待读取的block的大小，然后申请一块用来存放block和trailer的内存。
     size_t n = static_cast<size_t>(handle.size());
     char *buf = new char[n + kBlockTrailerSize];
@@ -105,6 +103,7 @@ namespace leveldb
 
     // 从文件指定偏移读取指定大小的内容到指定的缓冲区中，其实内容不一定会存放在buf
     // 中，但是无论是否存放在buf中，都可以用contents这个slice对象进行内容相关的操作。
+    // 把整个block读取出来
     Status s = file->Read(handle.offset(), n + kBlockTrailerSize, &contents, buf);
     if (!s.ok())
     {
@@ -118,7 +117,6 @@ namespace leveldb
     }
 
     // 对block中的校验和进行校验，校验和是由block内容和type计算得到的。
-    // Check the crc of the type and the block contents
     const char *data = contents.data(); // Pointer to where Read put the data
     if (options.verify_checksums)
     {
@@ -139,9 +137,6 @@ namespace leveldb
     case kNoCompression:
       if (data != buf)
       {
-        // File implementation gave us pointer to some other data.
-        // Use it directly under the assumption that it will be live
-        // while the file is open.
         delete[] buf;
         result->data = Slice(data, n);
         result->heap_allocated = false;

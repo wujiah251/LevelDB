@@ -92,8 +92,6 @@ namespace leveldb
     // 那么就可以开始构建一个Table类实例了。
     if (s.ok())
     {
-      // We've successfully read the footer and the index block: we're
-      // ready to serve requests.
       // 根据从文件中读出来的index block对应的流创建一个index block实例。
       // 后面可以根据这个实例，创建一个index block的迭代器，用于迭代获取
       // data block对象。
@@ -120,8 +118,6 @@ namespace leveldb
       return; // Do not need any metadata
     }
 
-    // TODO(sanjay): Skip this if footer.metaindex_handle() size indicates
-    // it is an empty block.
     ReadOptions opt;
     if (rep_->options.paranoid_checks)
     {
@@ -156,8 +152,6 @@ namespace leveldb
       return;
     }
 
-    // We might want to unify with ReadBlock() if we start
-    // requiring checksum verification in Table::Open.
     ReadOptions opt;
     if (rep_->options.paranoid_checks)
     {
@@ -198,8 +192,6 @@ namespace leveldb
     cache->Release(handle);
   }
 
-  // Convert an index iterator value (i.e., an encoded BlockHandle)
-  // into an iterator over the contents of the corresponding block.
   // BlockReader()方法用于创建一个index_value存放的位置和大小信息对应的data block的迭代器。
   // 这个迭代器可以用于遍历data block内的key-value记录。index_value参数存放着目标data block
   // 的位置和大小信息。
@@ -329,7 +321,7 @@ namespace leveldb
           handle.DecodeFrom(&handle_value).ok() &&
           !filter->KeyMayMatch(handle.offset(), k))
       {
-        // Not found
+        // 不存在
       }
       else
       {
@@ -380,17 +372,11 @@ namespace leveldb
       }
       else
       {
-        // Strange: we can't decode the block handle in the index block.
-        // We'll just return the offset of the metaindex block, which is
-        // close to the whole file size for this case.
         result = rep_->metaindex_handle.offset();
       }
     }
     else
     {
-      // key is past the last key in the file.  Approximate the offset
-      // by returning the offset of the metaindex block (which is
-      // right near the end of the file).
       result = rep_->metaindex_handle.offset();
     }
     delete index_iter;

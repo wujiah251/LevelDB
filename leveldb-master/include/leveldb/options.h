@@ -18,14 +18,10 @@ namespace leveldb
   class Logger;
   class Snapshot;
 
-  // DB contents are stored in a set of blocks, each of which holds a
-  // sequence of key,value pairs.  Each block may be compressed before
-  // being stored in a file.  The following enum describes which
-  // compression method (if any) is used to compress a block.
   enum CompressionType
   {
-    // NOTE: do not change the values of existing entries, as these are
-    // part of the persistent format on disk.
+
+    // 压缩类型
     kNoCompression = 0x0,
     kSnappyCompression = 0x1
   };
@@ -65,14 +61,13 @@ namespace leveldb
     // Default: currently false, but may become true later.
     bool reuse_logs;
 
-    // Default: NULL
+    // 过滤器策略
     const FilterPolicy *filter_policy;
 
-    // Create an Options object with default values for all fields.
     Options();
   };
 
-  // Options that control read operations
+  // 下面是读写的控制选项
   struct LEVELDB_EXPORT ReadOptions
   {
     bool verify_checksums; //是否检查校验和
@@ -89,6 +84,7 @@ namespace leveldb
   struct LEVELDB_EXPORT WriteOptions
   {
     bool sync;
+    // 写入方式，默认为异步，即只写内存，后台compaction时写入磁盘
     WriteOptions()
         : sync(false)
     {

@@ -1,7 +1,3 @@
-// Copyright (c) 2011 The LevelDB Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file. See the AUTHORS file for names of contributors.
-
 #include "db/db_impl.h"
 
 #include <algorithm>
@@ -38,13 +34,13 @@ namespace leveldb
 
   const int kNumNonTableCacheFiles = 10;
 
-  // Information kept for every waiting writer
   struct DBImpl::Writer
   {
     Status status;
     WriteBatch *batch;
     bool sync;
     bool done;
+    // 条件变量
     port::CondVar cv;
 
     explicit Writer(port::Mutex *mu) : cv(mu) {}
@@ -54,10 +50,6 @@ namespace leveldb
   {
     Compaction *const compaction;
 
-    // Sequence numbers < smallest_snapshot are not significant since we
-    // will never have to service a snapshot below smallest_snapshot.
-    // Therefore if we have seen a sequence number S <= smallest_snapshot,
-    // we can drop all entries for the same key with sequence numbers < S.
     SequenceNumber smallest_snapshot;
 
     // Files produced by compaction
@@ -1737,8 +1729,6 @@ namespace leveldb
     }
   }
 
-  // Default implementations of convenience methods that subclasses of DB
-  // can call if they wish
   Status DB::Put(const WriteOptions &opt, const Slice &key, const Slice &value)
   {
     WriteBatch batch;

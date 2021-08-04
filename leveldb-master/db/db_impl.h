@@ -1,7 +1,3 @@
-// Copyright (c) 2011 The LevelDB Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file. See the AUTHORS file for names of contributors.
-
 #ifndef STORAGE_LEVELDB_DB_DB_IMPL_H_
 #define STORAGE_LEVELDB_DB_DB_IMPL_H_
 
@@ -31,9 +27,11 @@ namespace leveldb
     DBImpl(const Options &options, const std::string &dbname);
     // 析构函数
     virtual ~DBImpl();
-
+    // 设置一个key-value
     virtual Status Put(const WriteOptions &, const Slice &key, const Slice &value);
+    // 删除一个key
     virtual Status Delete(const WriteOptions &, const Slice &key);
+    // 读取一个key-value
     virtual Status Write(const WriteOptions &options, WriteBatch *updates);
     virtual Status Get(const ReadOptions &options,
                        const Slice &key,
@@ -63,12 +61,13 @@ namespace leveldb
     struct CompactionState;
     struct Writer;
 
+    // 内部迭代器
     Iterator *NewInternalIterator(const ReadOptions &,
                                   SequenceNumber *latest_snapshot,
                                   uint32_t *seed);
-
+    //
     Status NewDB();
-
+    // 从文件中恢复
     Status Recover(VersionEdit *edit, bool *save_manifest)
         EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
@@ -77,11 +76,10 @@ namespace leveldb
     // Delete any unneeded files and stale in-memory entries.
     void DeleteObsoleteFiles();
 
-    // Compact the in-memory write buffer to disk.  Switches to a new
-    // log-file/memtable and writes a new descriptor iff successful.
-    // Errors are recorded in bg_error_.
+    // 合并memtable
     void CompactMemTable() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
+    //
     Status RecoverLogFile(uint64_t log_number, bool last_log, bool *save_manifest,
                           VersionEdit *edit, SequenceNumber *max_sequence)
         EXCLUSIVE_LOCKS_REQUIRED(mutex_);

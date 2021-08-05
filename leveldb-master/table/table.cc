@@ -126,7 +126,6 @@ namespace leveldb
     BlockContents contents;
     if (!ReadBlock(rep_->file, opt, footer.metaindex_handle(), &contents).ok())
     {
-      // Do not propagate errors since meta info is not needed for operation
       return;
     }
     Block *meta = new Block(contents);

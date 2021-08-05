@@ -91,7 +91,6 @@ namespace leveldb
       new_files_.push_back(std::make_pair(level, f));
     }
 
-    // Delete the specified "file" from the specified "level".
     // DeleteFile()方法用于往VersionEdit类实例中添加一个版本变动需要被删除的sstable文件，
     // level是sstable文件所在的层级数，而file则是sstable文件的file number。
     void DeleteFile(int level, uint64_t file)

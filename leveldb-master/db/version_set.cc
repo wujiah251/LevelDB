@@ -1260,14 +1260,10 @@ namespace leveldb
     }
     Finalize(v);
 
-    // Initialize new descriptor log file if necessary by creating
-    // a temporary file that contains a snapshot of the current version.
     std::string new_manifest_file;
     Status s;
     if (descriptor_log_ == NULL)
     {
-      // No reason to unlock *mu here since we only hit this path in the
-      // first call to LogAndApply (when opening the database).
       assert(descriptor_file_ == NULL);
       new_manifest_file = DescriptorFileName(dbname_, manifest_file_number_);
       edit->SetNextFile(next_file_number_);
@@ -1539,23 +1535,11 @@ namespace leveldb
       double score;
       if (level == 0)
       {
-        // We treat level-0 specially by bounding the number of files
-        // instead of number of bytes for two reasons:
-        //
-        // (1) With larger write-buffer sizes, it is nice not to do too
-        // many level-0 compactions.
-        //
-        // (2) The files in level-0 are merged on every read and
-        // therefore we wish to avoid too many files when the individual
-        // file size is small (perhaps because of a small write-buffer
-        // setting, or very high compression ratios, or lots of
-        // overwrites/deletions).
         score = v->files_[level].size() /
                 static_cast<double>(config::kL0_CompactionTrigger);
       }
       else
       {
-        // Compute the ratio of current size to size limit.
         const uint64_t level_bytes = TotalFileSize(v->files_[level]);
         score =
             static_cast<double>(level_bytes) / MaxBytesForLevel(options_, level);

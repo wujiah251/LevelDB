@@ -737,7 +737,7 @@ namespace leveldb
       bg_cv_.SignalAll();
     }
   }
-
+  // 只做一些检查，后面实际调用的是BackgroundCall
   void DBImpl::MaybeScheduleCompaction()
   {
     mutex_.AssertHeld();
@@ -777,11 +777,9 @@ namespace leveldb
     assert(bg_compaction_scheduled_);
     if (shutting_down_.Acquire_Load())
     {
-      // No more background work when shutting down.
     }
     else if (!bg_error_.ok())
     {
-      // No more background work after a background error.
     }
     else
     {
@@ -790,8 +788,6 @@ namespace leveldb
 
     bg_compaction_scheduled_ = false;
 
-    // Previous compaction may have produced too many files in a level,
-    // so reschedule another compaction if needed.
     MaybeScheduleCompaction();
     bg_cv_.SignalAll();
   }
@@ -811,6 +807,7 @@ namespace leveldb
     InternalKey manual_end;
     if (is_manual)
     {
+      // 用户手动触发的compaction
       ManualCompaction *m = manual_compaction_;
       c = versions_->CompactRange(m->level, m->begin, m->end);
       m->done = (c == NULL);
@@ -827,17 +824,16 @@ namespace leveldb
     }
     else
     {
+      // 检查是否满足compaction条件
       c = versions_->PickCompaction();
     }
 
     Status status;
     if (c == NULL)
     {
-      // Nothing to do
     }
     else if (!is_manual && c->IsTrivialMove())
     {
-      // Move file to next level
       assert(c->num_input_files(0) == 1);
       FileMetaData *f = c->input(0, 0);
       c->edit()->DeleteFile(c->level(), f->number);
@@ -859,6 +855,7 @@ namespace leveldb
     else
     {
       CompactionState *compact = new CompactionState(c);
+      // 做实际的compaction工作
       status = DoCompactionWork(compact);
       if (!status.ok())
       {
@@ -1532,8 +1529,7 @@ namespace leveldb
     return result;
   }
 
-  // REQUIRES: mutex_ is held
-  // REQUIRES: this thread is currently at the front of the writer queue
+  // compaction入口
   Status DBImpl::MakeRoomForWrite(bool force)
   {
     mutex_.AssertHeld();
@@ -1553,15 +1549,13 @@ namespace leveldb
           allow_delay &&
           versions_->NumLevelFiles(0) >= config::kL0_SlowdownWritesTrigger)
       {
-        // We are getting close to hitting a hard limit on the number of
-        // L0 files.  Rather than delaying a single write by several
-        // seconds when we hit the hard limit, start delaying each
-        // individual write by 1ms to reduce latency variance.  Also,
-        // this delay hands over some CPU to the compaction thread in
-        // case it is sharing the same core as the writer.
+        // 当L0的文件数量要达到阈值的时候，我们每次写入都延迟1ms，
+        // 这样可以为后台的compaction腾出一定的cpu（当后台compaction
+        //和当前线程是使用的一个内核的时候）这样可以降低写入延迟的方差
+        //因为延迟被分摊到多个写上面，而不是在几个甚至一个写的时候
         mutex_.Unlock();
         env_->SleepForMicroseconds(1000);
-        allow_delay = false; // Do not delay a single write more than once
+        allow_delay = false;
         mutex_.Lock();
       }
       else if (!force &&
@@ -1572,27 +1566,24 @@ namespace leveldb
       }
       else if (imm_ != NULL)
       {
-        // We have filled up the current memtable, but the previous
-        // one is still being compacted, so we wait.
+        // 上一次memtable的compaction尚未结束，等待后台compaction完成
+        // 因为compaction的过程为 mem ->imm 完成后删除imm
         Log(options_.info_log, "Current memtable full; waiting...\n");
         bg_cv_.Wait();
       }
       else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger)
       {
-        // There are too many level-0 files.
         Log(options_.info_log, "Too many L0 files; waiting...\n");
         bg_cv_.Wait();
       }
       else
       {
-        // Attempt to switch to a new memtable and trigger compaction of old
         assert(versions_->PrevLogNumber() == 0);
         uint64_t new_log_number = versions_->NewFileNumber();
         WritableFile *lfile = NULL;
         s = env_->NewWritableFile(LogFileName(dbname_, new_log_number), &lfile);
         if (!s.ok())
         {
-          // Avoid chewing through file number space in a tight loop.
           versions_->ReuseFileNumber(new_log_number);
           break;
         }
@@ -1605,7 +1596,8 @@ namespace leveldb
         has_imm_.Release_Store(imm_);
         mem_ = new MemTable(internal_comparator_);
         mem_->Ref();
-        force = false; // Do not force another compaction if have room
+        force = false;
+        // 触发后台compaction的函数调用
         MaybeScheduleCompaction();
       }
     }

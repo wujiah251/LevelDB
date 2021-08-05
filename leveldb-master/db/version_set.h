@@ -177,7 +177,6 @@ namespace leveldb
       last_sequence_ = s;
     }
 
-    // Mark the specified file number as used.
     void MarkFileNumberUsed(uint64_t number);
 
     uint64_t LogNumber() const { return log_number_; }
@@ -186,40 +185,25 @@ namespace leveldb
 
     Compaction *PickCompaction();
 
-    // Return a compaction object for compacting the range [begin,end] in
-    // the specified level.  Returns NULL if there is nothing in that
-    // level that overlaps the specified range.  Caller should delete
-    // the result.
     Compaction *CompactRange(
         int level,
         const InternalKey *begin,
         const InternalKey *end);
 
-    // Return the maximum overlapping data (in bytes) at next level for any
-    // file at a level >= 1.
     int64_t MaxNextLevelOverlappingBytes();
 
-    // Create an iterator that reads over the compaction inputs for "*c".
-    // The caller should delete the iterator when no longer needed.
     Iterator *MakeInputIterator(Compaction *c);
 
-    // Returns true iff some level needs a compaction.
     bool NeedsCompaction() const
     {
       Version *v = current_;
       return (v->compaction_score_ >= 1) || (v->file_to_compact_ != NULL);
     }
 
-    // Add all files listed in any live version to *live.
-    // May also mutate some internal state.
     void AddLiveFiles(std::set<uint64_t> *live);
 
-    // Return the approximate offset in the database of the data for
-    // "key" as of version "v".
     uint64_t ApproximateOffsetOf(Version *v, const InternalKey &key);
 
-    // Return a human-readable short (single-line) summary of the number
-    // of files per level.  Uses *scratch as backing store.
     struct LevelSummaryStorage
     {
       char buffer[100];

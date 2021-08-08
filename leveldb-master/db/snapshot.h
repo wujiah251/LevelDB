@@ -17,7 +17,7 @@ namespace leveldb
   class SnapshotImpl : public Snapshot
   {
   public:
-    // 序列号
+    // 序列号，唯一数据结构
     SequenceNumber number_;
 
   private:

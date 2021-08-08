@@ -808,6 +808,7 @@ namespace leveldb
     if (is_manual)
     {
       // 用户手动触发的compaction
+      // 按照范围合并
       ManualCompaction *m = manual_compaction_;
       c = versions_->CompactRange(m->level, m->begin, m->end);
       m->done = (c == NULL);
@@ -1304,6 +1305,7 @@ namespace leveldb
     }
     else
     {
+      // 上一次的序列号
       snapshot = versions_->LastSequence();
     }
 
@@ -1318,21 +1320,21 @@ namespace leveldb
     bool have_stat_update = false;
     Version::GetStats stats;
 
-    // Unlock while reading from files and memtables
     {
       mutex_.Unlock();
-      // First look in the memtable, then in the immutable memtable (if any).
+      // 生成查找key：keyLength+key+sequence+type
       LookupKey lkey(key, snapshot);
       if (mem->Get(lkey, value, &s))
       {
-        // Done
+        // 从memtable读取
       }
       else if (imm != NULL && imm->Get(lkey, value, &s))
       {
-        // Done
+        // 从immutable读
       }
       else
       {
+        // 从之前的版本读
         s = current->Get(options, lkey, value, &stats);
         have_stat_update = true;
       }
@@ -1341,6 +1343,7 @@ namespace leveldb
 
     if (have_stat_update && current->UpdateStats(stats))
     {
+      // 从之前的版本读，并且更新统计信息，确定是否要合并
       MaybeScheduleCompaction();
     }
     mem->Unref();
@@ -1716,6 +1719,7 @@ namespace leveldb
 
   Status DB::Put(const WriteOptions &opt, const Slice &key, const Slice &value)
   {
+    // 先把要写入的k-v放入batch中
     WriteBatch batch;
     batch.Put(key, value);
     return Write(opt, &batch);
@@ -1723,6 +1727,7 @@ namespace leveldb
 
   Status DB::Delete(const WriteOptions &opt, const Slice &key)
   {
+    // 把要删除的key放入到batch中
     WriteBatch batch;
     batch.Delete(key);
     return Write(opt, &batch);

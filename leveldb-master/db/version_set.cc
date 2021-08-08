@@ -413,10 +413,10 @@ namespace leveldb
     // SaverState枚举用来标识查询key的结果状态。
     enum SaverState
     {
-      kNotFound,
-      kFound,
-      kDeleted,
-      kCorrupt,
+      kNotFound, // 没找到
+      kFound,    // 找到了
+      kDeleted,  // 删除了
+      kCorrupt,  // 不正确
     };
 
     // struct Saver结构体用来保存user_key对应的value信息。
@@ -441,7 +441,6 @@ namespace leveldb
     }
     else
     {
-
       // 如果parsed_key.user_key等于s->user_key，说明找到了这个key记录
       // 然后根据parsed_key.type判断值是否有效，有效的话，就保存到s->value中。
       if (s->ucmp->Compare(parsed_key.user_key, s->user_key) == 0)
@@ -536,7 +535,7 @@ namespace leveldb
                       GetStats *stats)
   {
 
-    // 从LookupKe对象中获取到internal key和user key。
+    // 从LookupKey对象中获取到internal key和user key。
     Slice ikey = k.internal_key();
     Slice user_key = k.user_key();
     const Comparator *ucmp = vset_->icmp_.user_comparator();

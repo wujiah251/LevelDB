@@ -33,12 +33,13 @@ namespace leveldb
     virtual Status Delete(const WriteOptions &, const Slice &key);
     // 读取一个key-value
     virtual Status Write(const WriteOptions &options, WriteBatch *updates);
+    // 读取一个key
     virtual Status Get(const ReadOptions &options,
                        const Slice &key,
                        std::string *value);
     // 迭代器
     virtual Iterator *NewIterator(const ReadOptions &);
-    // 生成快照
+    // 读取快照
     virtual const Snapshot *GetSnapshot();
     // 释放快照
     virtual void ReleaseSnapshot(const Snapshot *snapshot);

@@ -71,7 +71,7 @@ namespace leveldb
   struct LEVELDB_EXPORT ReadOptions
   {
     bool verify_checksums; //是否检查校验和
-    bool fill_cache;
+    bool fill_cache;       // 快照
     const Snapshot *snapshot;
     ReadOptions()
         : verify_checksums(false),
